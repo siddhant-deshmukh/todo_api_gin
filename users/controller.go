@@ -1,42 +1,62 @@
 package users
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func getUserInfo(c *gin.Context) {
-
-}
-
-func registerUser(c *gin.Context) {
-	var newUser UserModel
-
-	err := c.BindJSON(&newUser)
+	auth_token, err := c.Cookie("todo_auth_token")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Enter user information in correct format"})
+		c.JSON(http.StatusNotAcceptable, bson.M{
+			"message": "Error in cookie",
+			"err":     err,
+		})
 		return
 	}
 
-	var bytes []byte
-	bytes, err = bcrypt.GenerateFromPassword([]byte(newUser.Password), 14)
+	// var token
+	token, err := jwt.Parse(auth_token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(token_key), nil
+	})
+
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "While hashing password"})
+		c.JSON(http.StatusInternalServerError, bson.M{
+			"error":   err,
+			"message": "Internal Server error (Parse)",
+		})
 		return
 	}
-	newUser.Password = string(bytes)
 
-	result, err := UserColl.InsertOne(Ctx, newUser)
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+
+		id := claims["_id"].(string)
+		user, err := getUserDocumentById(id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, bson.M{
+				"error":   err,
+				"message": "Internal Server error (Claim)",
+			})
+			return
+		}
+		c.JSON(http.StatusAccepted, bson.M{
+			"msg":    "Successfull",
+			"claims": claims,
+			"user":   user,
+		})
+	} else {
+		c.JSON(http.StatusNotAcceptable, bson.M{
+			"msg": "Invalid token",
+		})
 	}
-
-	c.IndentedJSON(http.StatusCreated, result)
 }
 
 func getUserById(c *gin.Context) {
@@ -51,31 +71,24 @@ func editUser(c *gin.Context) {
 
 }
 
-func userLogin(c *gin.Context) {
-	var checkUser UserCredentials
-	var user UserDocumentModel
+func getUserDocumentById(id string) (UserDocs, error) {
 
-	err := c.BindJSON(&checkUser)
+	var user UserDocumentModel
+	basonId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Enter correct user meow"})
-		return
+		return UserDocs{}, err
 	}
-	filter := bson.D{primitive.E{Key: "email", Value: checkUser.Identifier}}
+
+	filter := bson.D{primitive.E{Key: "_id", Value: basonId}}
 
 	err = UserColl.FindOne(Ctx, filter).Decode(&user)
 	if err != nil {
-		filter = bson.D{primitive.E{Key: "username", Value: checkUser.Identifier}}
-		err = UserColl.FindOne(Ctx, filter).Decode(&user)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"message": "Enter correct user email or username"})
-			return
-		}
+		return UserDocs{}, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(checkUser.Password))
-	if err == nil {
-		c.JSON(http.StatusAccepted, gin.H{"message": "Sucessfull"})
-	} else {
-		c.JSON(http.StatusConflict, gin.H{"message": "Enter correct credentials"})
-	}
+	return UserDocs{
+		ID:       user.ID,
+		Name:     user.Name,
+		UserName: user.UserName,
+	}, nil
 }

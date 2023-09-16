@@ -16,10 +16,16 @@ var Ctx context.Context
 
 type UserDocumentModel struct {
 	ID       primitive.ObjectID `bson:"_id"`
-	Name     string             `json:"title" binding:"required"`
+	Name     string             `json:"name" binding:"required"`
 	UserName string             `json:"username" binding:"required"`
 	Email    string             `json:"email" binding:"required"`
 	Password string             `json:"password" binding:"required"`
+}
+
+type UserDocs struct {
+	ID       primitive.ObjectID `bson:"_id"`
+	Name     string             `json:"name" binding:"required"`
+	UserName string             `json:"username" binding:"required"`
 }
 
 type UserModel struct {
@@ -33,6 +39,12 @@ type UserCredentials struct {
 	Identifier string `json:"identifier" binding:"required"`
 	Password   string `json:"password" binding:"required"`
 }
+
+// type UserTokenClaims struct {
+// 	*jwt.Cla
+// 	TokenType string
+// 	CustomerInfo
+// }
 
 func SetUserCollection(pointer1 *mongo.Collection, pointer2 context.Context) {
 	UserColl = pointer1

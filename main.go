@@ -47,5 +47,8 @@ func main() {
 	userRoutesGroup := router.Group("/user")
 	users.RegisterUserRoutes(userRoutesGroup)
 
+	userAuthRoutesGroup := router.Group("/")
+	users.RegisterUserAuthRoutes(userAuthRoutesGroup)
+
 	router.Run("localhost:8080")
 }
