@@ -11,52 +11,11 @@ import (
 )
 
 func getUserInfo(c *gin.Context) {
-	auth_token, err := c.Cookie("todo_auth_token")
-	if err != nil {
-		c.JSON(http.StatusNotAcceptable, bson.M{
-			"message": "Error in cookie",
-			"err":     err,
-		})
-		return
-	}
-
-	// var token
-	token, err := jwt.Parse(auth_token, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(token_key), nil
+	user := c.MustGet("user").(UserDocs)
+	c.JSON(http.StatusAccepted, bson.M{
+		"msg":  "Successfull",
+		"user": user,
 	})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, bson.M{
-			"error":   err,
-			"message": "Internal Server error (Parse)",
-		})
-		return
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-
-		id := claims["_id"].(string)
-		user, err := getUserDocumentById(id)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, bson.M{
-				"error":   err,
-				"message": "Internal Server error (Claim)",
-			})
-			return
-		}
-		c.JSON(http.StatusAccepted, bson.M{
-			"msg":    "Successfull",
-			"claims": claims,
-			"user":   user,
-		})
-	} else {
-		c.JSON(http.StatusNotAcceptable, bson.M{
-			"msg": "Invalid token",
-		})
-	}
 }
 
 func getUserById(c *gin.Context) {
@@ -69,6 +28,60 @@ func deleteUser(c *gin.Context) {
 
 func editUser(c *gin.Context) {
 
+}
+
+func AuthUserMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		auth_token, err := c.Cookie("todo_auth_token")
+		if err != nil {
+			c.JSON(http.StatusForbidden, bson.M{
+				"message": "Error in cookie",
+				"err":     err,
+			})
+			c.Abort()
+			return
+		}
+
+		// var token
+		token, err := jwt.Parse(auth_token, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(token_key), nil
+		})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, bson.M{
+				"error":   err,
+				"message": "Internal Server error (Parse)",
+			})
+			c.Abort()
+			return
+		}
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+
+			id := claims["_id"].(string)
+			user, err := getUserDocumentById(id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, bson.M{
+					"error":   err,
+					"message": "Internal Server error (Claim)",
+				})
+				c.Abort()
+				return
+			}
+
+			c.Set("user", user)
+			c.Next()
+
+		} else {
+			c.JSON(http.StatusNotAcceptable, bson.M{
+				"msg": "Invalid token",
+			})
+			c.Abort()
+		}
+	}
 }
 
 func getUserDocumentById(id string) (UserDocs, error) {

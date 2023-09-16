@@ -45,6 +45,7 @@ func main() {
 	todos.RegisterTodoRoutes(todoRoutesGroup)
 
 	userRoutesGroup := router.Group("/user")
+	userRoutesGroup.Use(users.AuthUserMiddleware())
 	users.RegisterUserRoutes(userRoutesGroup)
 
 	userAuthRoutesGroup := router.Group("/")

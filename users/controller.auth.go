@@ -116,7 +116,6 @@ func userLogin(c *gin.Context) {
 	c.JSON(http.StatusAccepted, bson.M{
 		"user": user,
 	})
-
 }
 
 func saveTokenString(c *gin.Context, ID string) error {
