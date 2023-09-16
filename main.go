@@ -6,11 +6,14 @@ import (
 	"os"
 
 	"example.com/gin_01/todos"
+	"example.com/gin_01/users"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// var client *mongo.Client
 
 func main() {
 	err := godotenv.Load()
@@ -32,10 +35,17 @@ func main() {
 	todoColl := client.Database("test").Collection("todo")
 	todos.SetTodoCollection(todoColl, ctx)
 
+	// userColl := client.Database("test").Collection("users")
+	users.ManageUserCollection(client)
+	// users.SetUserCollection(userColl, ctx)
+
 	router := gin.Default()
 
-	todoRoutesGroup := router.Group("/")
+	todoRoutesGroup := router.Group("/todo")
 	todos.RegisterTodoRoutes(todoRoutesGroup)
+
+	userRoutesGroup := router.Group("/user")
+	users.RegisterUserRoutes(userRoutesGroup)
 
 	router.Run("localhost:8080")
 }
