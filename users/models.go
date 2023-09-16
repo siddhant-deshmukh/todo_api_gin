@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,13 +19,19 @@ type UserDocumentModel struct {
 	Name     string             `json:"title" binding:"required"`
 	UserName string             `json:"username" binding:"required"`
 	Email    string             `json:"email" binding:"required"`
+	Password string             `json:"password" binding:"required"`
 }
 
 type UserModel struct {
 	Name     string `json:"name" binding:"required"`
 	UserName string `json:"username" binding:"required"`
-	Email    string `json:"email" binding:"required" valid:"email"`
-	// Password string `json:"password" binding:"required"`
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type UserCredentials struct {
+	Identifier string `json:"identifier" binding:"required"`
+	Password   string `json:"password" binding:"required"`
 }
 
 func SetUserCollection(pointer1 *mongo.Collection, pointer2 context.Context) {
@@ -41,7 +48,7 @@ func ManageUserCollection(client *mongo.Client) {
 		"$jsonSchema": bson.M{
 			"bsonType": "object",
 			"title":    "user object validation",
-			"required": []string{"name", "email", "username"},
+			"required": []string{"name", "email", "username", "password"},
 			"properties": bson.M{
 				"name": bson.M{
 					"bsonType":    "string",
@@ -61,8 +68,6 @@ func ManageUserCollection(client *mongo.Client) {
 				},
 				"password": bson.M{
 					"bsonType":    "string",
-					"minLength":   5,
-					"maxLength":   20,
 					"description": "string with length between 5 to 20",
 				},
 			},
@@ -70,16 +75,15 @@ func ManageUserCollection(client *mongo.Client) {
 	}
 	indexModels := []mongo.IndexModel{
 		{
-			Keys: bson.D{{Key: "email", Value: 1}},
-
+			Keys:    bson.D{{Key: "email", Value: 1}},
 			Options: options.Index().SetName("email").SetUnique(true),
 		},
 		{
-			Keys: bson.D{{Key: "username", Value: 1}},
-
+			Keys:    bson.D{{Key: "username", Value: 1}},
 			Options: options.Index().SetName("username").SetUnique(true),
 		},
 	}
+
 	opts := options.CreateCollection().SetValidator(validator)
 	err := database.CreateCollection(Ctx, "users", opts)
 
@@ -91,9 +95,7 @@ func ManageUserCollection(client *mongo.Client) {
 	} else {
 		_, err := userColl.Indexes().CreateMany(Ctx, indexModels)
 		if err != nil {
-			fmt.Println(" ------------------------------- ")
-			fmt.Println(err)
-			fmt.Println(" ------------------------------- ")
+			log.Fatal(err)
 		}
 	}
 }
