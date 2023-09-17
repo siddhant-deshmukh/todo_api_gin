@@ -32,16 +32,19 @@ func main() {
 		log.Fatal("Unable to connect the mongodb database")
 	}
 
-	todoColl := client.Database("test").Collection("todo")
-	todos.SetTodoCollection(todoColl, ctx)
+	todos.ManageTodoCollection(client)
+	users.ManageUserCollection(client)
+
+	// todoColl := client.Database("test").Collection("todo")
+	// todos.SetTodoCollection(todoColl, ctx)
 
 	// userColl := client.Database("test").Collection("users")
-	users.ManageUserCollection(client)
 	// users.SetUserCollection(userColl, ctx)
 
 	router := gin.Default()
 
 	todoRoutesGroup := router.Group("/todo")
+	todoRoutesGroup.Use(users.AuthUserMiddleware())
 	todos.RegisterTodoRoutes(todoRoutesGroup)
 
 	userRoutesGroup := router.Group("/user")
